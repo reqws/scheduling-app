@@ -8,16 +8,34 @@ export default function Home() {
     contact: "",
     datetime: "",
   });
+  const [status, setStatus] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert(
-      `Appointment Scheduled!\n\nName: ${formData.name}\nContact: ${formData.contact}\nDate & Time: ${formData.datetime}`
-    );
+    setStatus("Saving...");
+
+    try {
+      const res = await fetch("/api/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (res.ok) {
+        setStatus("Appointment saved successfully!");
+        setFormData({ name: "", contact: "", datetime: "" });
+      } else {
+        const error = await res.json();
+        setStatus(`Error: ${error.message}`);
+      }
+    } catch (err) {
+      console.error(err);
+      setStatus("Error saving appointment.");
+    }
   };
 
   return (
@@ -28,64 +46,32 @@ export default function Home() {
         </h1>
 
         <form onSubmit={handleSubmit} className="w-full flex flex-col gap-5">
-          {/* Name Field */}
-          <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
-            >
-              Full Name
-            </label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-              className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-            />
-          </div>
-
-          {/* Contact Field */}
-          <div>
-            <label
-              htmlFor="contact"
-              className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
-            >
-              Contact Number
-            </label>
-            <input
-              type="tel"
-              id="contact"
-              name="contact"
-              value={formData.contact}
-              onChange={handleChange}
-              required
-              className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-            />
-          </div>
-
-          {/* Date and Time Field */}
-          <div>
-            <label
-              htmlFor="datetime"
-              className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
-            >
-              Date & Time
-            </label>
-            <input
-              type="datetime-local"
-              id="datetime"
-              name="datetime"
-              value={formData.datetime}
-              onChange={handleChange}
-              required
-              className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-            />
-          </div>
-
-          {/* Submit Button */}
+          <input
+            type="text"
+            name="name"
+            placeholder="Full Name"
+            value={formData.name}
+            onChange={handleChange}
+            required
+            className="rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+          />
+          <input
+            type="tel"
+            name="contact"
+            placeholder="Contact Number"
+            value={formData.contact}
+            onChange={handleChange}
+            required
+            className="rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+          />
+          <input
+            type="datetime-local"
+            name="datetime"
+            value={formData.datetime}
+            onChange={handleChange}
+            required
+            className="rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+          />
           <button
             type="submit"
             className="mt-4 w-full rounded-md bg-blue-600 py-2 text-white font-medium transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -93,6 +79,10 @@ export default function Home() {
             Schedule
           </button>
         </form>
+
+        {status && (
+          <p className="mt-4 text-sm text-zinc-700 dark:text-zinc-300">{status}</p>
+        )}
       </main>
     </div>
   );
