@@ -1,31 +1,51 @@
 // app/api/appointments/route.ts
-import { NextResponse } from "next/server";
-import { connectDB } from "../../lib/mongodb";
-import Appointment from "../../models/appointment";
 
-export async function POST(req: Request) {
+import { NextRequest, NextResponse } from 'next/server';
+import { MongoClient } from 'mongodb';
+
+const uri = process.env.MONGODB_URI!;
+const client = new MongoClient(uri);
+
+export async function POST(request: NextRequest) {
+    const { name, contact, datetime } = await request.json();
+
+    if (!name || !contact || !datetime) {
+        return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+    }
+
     try {
-        const { name, contact, datetime } = await req.json();
+        await client.connect();
+        const db = client.db('SchedDB_Name'); // your database name
+        const collection = db.collection('appointments');
 
-        if (!name || !contact || !datetime) {
+        // Optional: check for existing appointment with same name and datetime
+        const existing = await collection.findOne({
+            name: name.trim(),
+            datetime: datetime,
+        });
+        if (existing) {
             return NextResponse.json(
-                { message: "Missing required fields" },
-                { status: 400 }
+                { error: 'Appointment already exists for this time' },
+                { status: 409 }
             );
         }
 
-        await connectDB();
-        const newAppointment = await Appointment.create({ name, contact, datetime });
+        // Insert new appointment
+        const result = await collection.insertOne({
+            name: name.trim(),
+            contact: contact.trim(),
+            datetime,
+            createdAt: new Date(),
+        });
 
-        return NextResponse.json(
-            { message: "Appointment saved successfully", appointment: newAppointment },
-            { status: 201 }
-        );
-    } catch (error: any) {
-        console.error("Error saving appointment:", error);
-        return NextResponse.json(
-            { message: "Server error", error: error.message },
-            { status: 500 }
-        );
+        return NextResponse.json({
+            message: 'Appointment saved successfully',
+            id: result.insertedId,
+        });
+    } catch (error) {
+        console.error('Error saving appointment:', error);
+        return NextResponse.json({ error: 'Database error' }, { status: 500 });
+    } finally {
+        await client.close();
     }
 }
