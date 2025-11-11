@@ -62,7 +62,7 @@ export default function AdminPage() {
 
   const handleUpdate = async () => {
     if (!editingAppt) return;
-    await fetch(`/api/admin/${editingAppt.id}`, {
+    await fetch(`/api/admin`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: editingAppt.id, ...form }),
