@@ -12,13 +12,15 @@ export async function GET() {
     const db = client.db('SchedDB_Name');
     const collection = db.collection('appointments');
 
-    const data = await collection.find().toArray();
+    // Sort newest first (optional but nice)
+    const data = await collection.find().sort({ createdAt: -1 }).toArray();
 
     const formatted = data.map((item) => ({
       id: item._id.toString(),
       name: item.name,
       contact: item.contact,
       datetime: item.datetime,
+      createdAt: item.createdAt ? item.createdAt : null, // ✅ include createdAt
     }));
 
     return NextResponse.json(formatted);

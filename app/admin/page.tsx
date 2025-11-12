@@ -8,6 +8,7 @@ type Appointment = {
   name: string;
   contact: string;
   datetime: string;
+  createdAt: string; // <-- ensure your backend sends this
 };
 
 export default function AdminPage() {
@@ -19,12 +20,14 @@ export default function AdminPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleteAppt, setDeleteAppt] = useState<Appointment | null>(null);
 
+  // ---------- Fetch Appointments ----------
   useEffect(() => {
     fetchAppointments();
   }, []);
 
   async function fetchAppointments() {
     try {
+      setLoading(true);
       const res = await fetch("/api/admin");
       const data = await res.json();
       setAppointments(data);
@@ -35,21 +38,24 @@ export default function AdminPage() {
     }
   }
 
-  const handleAdd = async () => {
+  // ---------- CRUD Handlers ----------
+  async function handleAdd() {
     if (!form.name || !form.contact || !form.datetime) return;
-    const res = await fetch("/api/admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    if (res.ok) {
+
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (!res.ok) throw new Error("Failed to add appointment");
       setForm({ name: "", contact: "", datetime: "" });
-      fetchAppointments();
-    } else {
-      const err = await res.json();
-      alert(err.error || "Failed to add appointment");
+      await fetchAppointments();
+    } catch (err: any) {
+      alert(err.message || "Error adding appointment");
     }
-  };
+  }
 
   const handleEdit = (appt: Appointment) => {
     setEditingAppt(appt);
@@ -60,44 +66,61 @@ export default function AdminPage() {
     });
   };
 
-  const handleUpdate = async () => {
+  async function handleUpdate() {
     if (!editingAppt) return;
-    await fetch(`/api/admin`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: editingAppt.id, ...form }),
-    });
-    setEditingAppt(null);
-    setForm({ name: "", contact: "", datetime: "" });
-    fetchAppointments();
-  };
+
+    try {
+      const res = await fetch("/api/admin", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingAppt.id, ...form }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update appointment");
+      setEditingAppt(null);
+      setForm({ name: "", contact: "", datetime: "" });
+      await fetchAppointments();
+    } catch (err: any) {
+      alert(err.message || "Error updating appointment");
+    }
+  }
 
   const handleDeleteClick = (appt: Appointment) => {
     setDeleteAppt(appt);
     setShowDelete(true);
   };
 
-  const handleDeleteConfirm = async () => {
+  async function handleDeleteConfirm() {
     if (!deleteAppt) return;
-    await fetch("/api/admin", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: deleteAppt.id }),
-    });
-    setShowDelete(false);
-    setDeleteAppt(null);
-    fetchAppointments();
-  };
+    try {
+      await fetch("/api/admin", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: deleteAppt.id }),
+      });
+      setShowDelete(false);
+      setDeleteAppt(null);
+      await fetchAppointments();
+    } catch (err) {
+      console.error("Error deleting appointment:", err);
+    }
+  }
 
+  // ---------- Filter ----------
   const filteredAppointments = appointments.filter(
     (appt) =>
       appt.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       appt.contact.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // ---------- Common Styles ----------
+  const inputClass =
+    "rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
+
+  // ---------- Render ----------
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black flex flex-col items-center p-10">
-      <div className="w-full max-w-4xl bg-white dark:bg-zinc-900 rounded-lg shadow-md p-6">
+      <div className="w-full max-w-5xl bg-white dark:bg-zinc-900 rounded-lg shadow-md p-6">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
@@ -105,7 +128,7 @@ export default function AdminPage() {
           </h1>
           <Link
             href="/"
-            className="rounded-md bg-zinc-800 px-3 py-2 text-white text-sm hover:bg-zinc-700"
+            className="rounded-md bg-zinc-800 px-3 py-2 text-white text-sm hover:bg-zinc-700 transition-colors"
           >
             Back to Home
           </Link>
@@ -121,10 +144,10 @@ export default function AdminPage() {
           placeholder="Search by name or contact..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="mb-6 w-full rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+          className={`${inputClass} mb-6 w-full`}
         />
 
-        {/* Form for adding new appointment */}
+        {/* Add Form */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -137,20 +160,20 @@ export default function AdminPage() {
             placeholder="Name"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 flex-1"
+            className={`${inputClass} flex-1`}
           />
           <input
             type="text"
             placeholder="Contact"
             value={form.contact}
             onChange={(e) => setForm({ ...form, contact: e.target.value })}
-            className="rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 flex-1"
+            className={`${inputClass} flex-1`}
           />
           <input
             type="datetime-local"
             value={form.datetime}
             onChange={(e) => setForm({ ...form, datetime: e.target.value })}
-            className="rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 flex-1"
+            className={`${inputClass} flex-1`}
           />
 
           <button
@@ -161,52 +184,76 @@ export default function AdminPage() {
           </button>
         </form>
 
-        {/* Appointment List */}
+        {/* Appointment Table */}
         {loading ? (
-          <p className="text-zinc-700 dark:text-zinc-300">Loading...</p>
+          <p className="text-zinc-700 dark:text-zinc-300">Loading appointments...</p>
         ) : filteredAppointments.length > 0 ? (
-          <ul className="divide-y divide-zinc-200 dark:divide-zinc-700">
-            {filteredAppointments.map((appt) => (
-              <li
-                key={appt.id}
-                className="py-4 flex justify-between items-center"
-              >
-                <div>
-                  <p className="text-zinc-900 dark:text-zinc-100 font-medium">
-                    {appt.name}
-                  </p>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    {appt.contact} — {new Date(appt.datetime).toLocaleString()}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(appt)}
-                    className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
+          <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-700">
+            <table className="min-w-full text-sm text-left text-zinc-700 dark:text-zinc-300">
+              <thead className="sticky top-0 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 uppercase text-xs font-semibold">
+                <tr>
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Contact</th>
+                  <th className="px-4 py-3">Appointment</th>
+                  <th className="px-4 py-3">Created At</th>
+                  <th className="px-4 py-3 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAppointments.map((appt, i) => (
+                  <tr
+                    key={appt.id}
+                    className={`border-t border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors ${i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50 dark:bg-zinc-800"
+                      }`}
                   >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClick(appt)}
-                    className="text-sm bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+                    <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">
+                      {appt.name}
+                    </td>
+                    <td className="px-4 py-3">{appt.contact}</td>
+                    <td className="px-4 py-3">
+                      {new Date(appt.datetime).toLocaleString(undefined, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+                      {appt.createdAt
+                        ? new Date(appt.createdAt).toLocaleString(undefined, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3 flex justify-center gap-2">
+                      <button
+                        onClick={() => handleEdit(appt)}
+                        className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(appt)}
+                        className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
-          <p className="text-zinc-700 dark:text-zinc-300">
+          <div className="text-center py-8 text-zinc-600 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-md">
             No appointments found.
-          </p>
+          </div>
         )}
       </div>
 
-      {/* EDIT MODAL */}
+      {/* Edit Modal */}
       {editingAppt && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-md w-80">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-lg w-80">
             <h2 className="text-xl font-semibold text-center mb-4 text-zinc-900 dark:text-zinc-50">
               Edit Appointment
             </h2>
@@ -223,7 +270,7 @@ export default function AdminPage() {
                 placeholder="Name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                className={inputClass}
               />
               <input
                 type="text"
@@ -231,16 +278,14 @@ export default function AdminPage() {
                 placeholder="Contact"
                 value={form.contact}
                 onChange={(e) => setForm({ ...form, contact: e.target.value })}
-                className="rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                className={inputClass}
               />
               <input
                 type="datetime-local"
                 name="datetime"
                 value={form.datetime}
-                onChange={(e) =>
-                  setForm({ ...form, datetime: e.target.value })
-                }
-                className="rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                onChange={(e) => setForm({ ...form, datetime: e.target.value })}
+                className={inputClass}
               />
 
               <div className="flex gap-2 mt-3">
@@ -263,10 +308,10 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* DELETE CONFIRMATION MODAL */}
+      {/* Delete Confirmation Modal */}
       {showDelete && deleteAppt && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-md w-80 text-center">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-lg w-80 text-center">
             <h2 className="text-xl font-semibold mb-4 text-zinc-900 dark:text-zinc-50">
               Delete Appointment
             </h2>
