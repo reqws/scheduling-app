@@ -8,7 +8,7 @@ type Appointment = {
   name: string;
   contact: string;
   datetime: string;
-  createdAt: string; // <-- ensure your backend sends this
+  createdAt: string;
 };
 
 export default function AdminPage() {
@@ -19,6 +19,10 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [showDelete, setShowDelete] = useState(false);
   const [deleteAppt, setDeleteAppt] = useState<Appointment | null>(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // ---------- Fetch Appointments ----------
   useEffect(() => {
@@ -106,12 +110,22 @@ export default function AdminPage() {
     }
   }
 
-  // ---------- Filter ----------
+  // ---------- Filter + Pagination ----------
   const filteredAppointments = appointments.filter(
     (appt) =>
       appt.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       appt.contact.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentAppointments = filteredAppointments.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
+
+  const handlePrev = () => setCurrentPage((p) => Math.max(p - 1, 1));
+  const handleNext = () => setCurrentPage((p) => Math.min(p + 1, totalPages));
 
   // ---------- Common Styles ----------
   const inputClass =
@@ -143,7 +157,10 @@ export default function AdminPage() {
           type="text"
           placeholder="Search by name or contact..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setCurrentPage(1); // reset page when filtering
+          }}
           className={`${inputClass} mb-6 w-full`}
         />
 
@@ -186,63 +203,98 @@ export default function AdminPage() {
 
         {/* Appointment Table */}
         {loading ? (
-          <p className="text-zinc-700 dark:text-zinc-300">Loading appointments...</p>
+          <p className="text-zinc-700 dark:text-zinc-300">
+            Loading appointments...
+          </p>
         ) : filteredAppointments.length > 0 ? (
-          <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-700">
-            <table className="min-w-full text-sm text-left text-zinc-700 dark:text-zinc-300">
-              <thead className="sticky top-0 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 uppercase text-xs font-semibold">
-                <tr>
-                  <th className="px-4 py-3">Name</th>
-                  <th className="px-4 py-3">Contact</th>
-                  <th className="px-4 py-3">Appointment</th>
-                  <th className="px-4 py-3">Created At</th>
-                  <th className="px-4 py-3 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAppointments.map((appt, i) => (
-                  <tr
-                    key={appt.id}
-                    className={`border-t border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors ${i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50 dark:bg-zinc-800"
-                      }`}
-                  >
-                    <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">
-                      {appt.name}
-                    </td>
-                    <td className="px-4 py-3">{appt.contact}</td>
-                    <td className="px-4 py-3">
-                      {new Date(appt.datetime).toLocaleString(undefined, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
-                      {appt.createdAt
-                        ? new Date(appt.createdAt).toLocaleString(undefined, {
+          <>
+            <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-700">
+              <table className="min-w-full text-sm text-left text-zinc-700 dark:text-zinc-300">
+                <thead className="sticky top-0 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 uppercase text-xs font-semibold">
+                  <tr>
+                    <th className="px-4 py-3">Name</th>
+                    <th className="px-4 py-3">Contact</th>
+                    <th className="px-4 py-3">Appointment</th>
+                    <th className="px-4 py-3">Created At</th>
+                    <th className="px-4 py-3 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentAppointments.map((appt, i) => (
+                    <tr
+                      key={appt.id}
+                      className={`border-t border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors ${i % 2 === 0
+                        ? "bg-white dark:bg-zinc-900"
+                        : "bg-zinc-50 dark:bg-zinc-800"
+                        }`}
+                    >
+                      <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">
+                        {appt.name}
+                      </td>
+                      <td className="px-4 py-3">{appt.contact}</td>
+                      <td className="px-4 py-3">
+                        {new Date(appt.datetime).toLocaleString(undefined, {
                           dateStyle: "medium",
                           timeStyle: "short",
-                        })
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3 flex justify-center gap-2">
-                      <button
-                        onClick={() => handleEdit(appt)}
-                        className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(appt)}
-                        className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        })}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+                        {appt.createdAt
+                          ? new Date(appt.createdAt).toLocaleString(undefined, {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3 flex justify-center gap-2">
+                        <button
+                          onClick={() => handleEdit(appt)}
+                          className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(appt)}
+                          className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="flex justify-between items-center mt-4 text-sm text-zinc-600 dark:text-zinc-300">
+              <span>
+                Page {currentPage} of {totalPages}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={handlePrev}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-1 rounded border border-zinc-300 dark:border-zinc-600 transition ${currentPage === 1
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    }`}
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={handleNext}
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-1 rounded border border-zinc-300 dark:border-zinc-600 transition ${currentPage === totalPages
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    }`}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
         ) : (
           <div className="text-center py-8 text-zinc-600 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-md">
             No appointments found.
