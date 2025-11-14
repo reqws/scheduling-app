@@ -20,25 +20,32 @@ export default function AdminPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleteAppt, setDeleteAppt] = useState<Appointment | null>(null);
 
-  // Pagination state
+  // FLASH COLORS FOR ROWS
+  const [flash, setFlash] = useState<{
+    id: string;
+    type: "add" | "update" | "delete";
+  } | null>(null);
+
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   // ---------- Fetch Appointments ----------
   useEffect(() => {
-    fetchAppointments();
+    fetchAppointments(true); // show loader on first load
   }, []);
 
-  async function fetchAppointments() {
+  async function fetchAppointments(showLoader = true) {
     try {
-      setLoading(true);
+      if (showLoader) setLoading(true);
+
       const res = await fetch("/api/admin");
       const data = await res.json();
       setAppointments(data);
     } catch (err) {
       console.error("Error fetching appointments:", err);
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
   }
 
@@ -54,8 +61,15 @@ export default function AdminPage() {
       });
 
       if (!res.ok) throw new Error("Failed to add appointment");
+
+      const newAppointment = await res.json(); // RETURNS { id: ... }
+
       setForm({ name: "", contact: "", datetime: "" });
-      await fetchAppointments();
+
+      await fetchAppointments(false);
+
+      setFlash({ id: newAppointment.id, type: "add" });
+      setTimeout(() => setFlash(null), 1000);
     } catch (err: any) {
       alert(err.message || "Error adding appointment");
     }
@@ -81,9 +95,16 @@ export default function AdminPage() {
       });
 
       if (!res.ok) throw new Error("Failed to update appointment");
+
+      const updatedId = editingAppt.id;
+
       setEditingAppt(null);
       setForm({ name: "", contact: "", datetime: "" });
-      await fetchAppointments();
+
+      await fetchAppointments(false);
+
+      setFlash({ id: updatedId, type: "update" });
+      setTimeout(() => setFlash(null), 1000);
     } catch (err: any) {
       alert(err.message || "Error updating appointment");
     }
@@ -96,15 +117,23 @@ export default function AdminPage() {
 
   async function handleDeleteConfirm() {
     if (!deleteAppt) return;
+
     try {
+      const deletedId = deleteAppt.id;
+
       await fetch("/api/admin", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: deleteAppt.id }),
       });
+
       setShowDelete(false);
       setDeleteAppt(null);
-      await fetchAppointments();
+
+      await fetchAppointments(false);
+
+      setFlash({ id: deletedId, type: "delete" });
+      setTimeout(() => setFlash(null), 1000);
     } catch (err) {
       console.error("Error deleting appointment:", err);
     }
@@ -127,7 +156,6 @@ export default function AdminPage() {
   const handlePrev = () => setCurrentPage((p) => Math.max(p - 1, 1));
   const handleNext = () => setCurrentPage((p) => Math.min(p + 1, totalPages));
 
-  // ---------- Common Styles ----------
   const inputClass =
     "rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
 
@@ -135,7 +163,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black flex flex-col items-center p-10">
       <div className="w-full max-w-5xl bg-white dark:bg-zinc-900 rounded-lg shadow-md p-6">
-        {/* Header */}
+        {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
             Appointment Admin
@@ -148,23 +176,19 @@ export default function AdminPage() {
           </Link>
         </div>
 
-        <p className="text-zinc-600 dark:text-zinc-400 mb-4 text-sm">
-          Manage and monitor all appointments below.
-        </p>
-
-        {/* Search */}
+        {/* SEARCH */}
         <input
           type="text"
           placeholder="Search by name or contact..."
           value={searchQuery}
           onChange={(e) => {
             setSearchQuery(e.target.value);
-            setCurrentPage(1); // reset page when filtering
+            setCurrentPage(1);
           }}
           className={`${inputClass} mb-6 w-full`}
         />
 
-        {/* Add Form */}
+        {/* ADD FORM */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -201,11 +225,9 @@ export default function AdminPage() {
           </button>
         </form>
 
-        {/* Appointment Table */}
+        {/* TABLE */}
         {loading ? (
-          <p className="text-zinc-700 dark:text-zinc-300">
-            Loading appointments...
-          </p>
+          <p className="text-zinc-700 dark:text-zinc-300">Loading appointments...</p>
         ) : filteredAppointments.length > 0 ? (
           <>
             <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-700">
@@ -223,10 +245,25 @@ export default function AdminPage() {
                   {currentAppointments.map((appt, i) => (
                     <tr
                       key={appt.id}
-                      className={`border-t border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors ${i % 2 === 0
-                        ? "bg-white dark:bg-zinc-900"
-                        : "bg-zinc-50 dark:bg-zinc-800"
-                        }`}
+                      className={`
+                        border-t border-zinc-200 dark:border-zinc-700
+                        transition-colors
+
+                        ${i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50 dark:bg-zinc-800"}
+
+                        ${flash?.id === appt.id && flash.type === "add"
+                          ? "animate-flash-green"
+                          : ""
+                        }
+                        ${flash?.id === appt.id && flash.type === "update"
+                          ? "animate-flash-blue"
+                          : ""
+                        }
+                        ${flash?.id === appt.id && flash.type === "delete"
+                          ? "animate-flash-red"
+                          : ""
+                        }
+                      `}
                     >
                       <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">
                         {appt.name}
@@ -266,11 +303,9 @@ export default function AdminPage() {
               </table>
             </div>
 
-            {/* Pagination Controls */}
+            {/* PAGINATION */}
             <div className="flex justify-between items-center mt-4 text-sm text-zinc-600 dark:text-zinc-300">
-              <span>
-                Page {currentPage} of {totalPages}
-              </span>
+              <span>Page {currentPage} of {totalPages}</span>
               <div className="flex gap-2">
                 <button
                   onClick={handlePrev}
@@ -302,7 +337,7 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* Edit Modal */}
+      {/* EDIT MODAL */}
       {editingAppt && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-lg w-80">
@@ -318,7 +353,6 @@ export default function AdminPage() {
             >
               <input
                 type="text"
-                name="name"
                 placeholder="Name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -326,7 +360,6 @@ export default function AdminPage() {
               />
               <input
                 type="text"
-                name="contact"
                 placeholder="Contact"
                 value={form.contact}
                 onChange={(e) => setForm({ ...form, contact: e.target.value })}
@@ -334,7 +367,6 @@ export default function AdminPage() {
               />
               <input
                 type="datetime-local"
-                name="datetime"
                 value={form.datetime}
                 onChange={(e) => setForm({ ...form, datetime: e.target.value })}
                 className={inputClass}
@@ -360,7 +392,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* DELETE MODAL */}
       {showDelete && deleteAppt && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-lg w-80 text-center">
