@@ -20,11 +20,14 @@ export default function AdminPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleteAppt, setDeleteAppt] = useState<Appointment | null>(null);
 
-  // FLASH COLORS FOR ROWS
+  // FLASH STATE
   const [flash, setFlash] = useState<{
     id: string;
     type: "add" | "update" | "delete";
   } | null>(null);
+
+  // Track rows temporarily for delete animation
+  const [deletedRows, setDeletedRows] = useState<string[]>([]);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -32,13 +35,12 @@ export default function AdminPage() {
 
   // ---------- Fetch Appointments ----------
   useEffect(() => {
-    fetchAppointments(true); // show loader on first load
+    fetchAppointments(true);
   }, []);
 
   async function fetchAppointments(showLoader = true) {
     try {
       if (showLoader) setLoading(true);
-
       const res = await fetch("/api/admin");
       const data = await res.json();
       setAppointments(data);
@@ -62,10 +64,9 @@ export default function AdminPage() {
 
       if (!res.ok) throw new Error("Failed to add appointment");
 
-      const newAppointment = await res.json(); // RETURNS { id: ... }
+      const newAppointment = await res.json();
 
       setForm({ name: "", contact: "", datetime: "" });
-
       await fetchAppointments(false);
 
       setFlash({ id: newAppointment.id, type: "add" });
@@ -97,10 +98,8 @@ export default function AdminPage() {
       if (!res.ok) throw new Error("Failed to update appointment");
 
       const updatedId = editingAppt.id;
-
       setEditingAppt(null);
       setForm({ name: "", contact: "", datetime: "" });
-
       await fetchAppointments(false);
 
       setFlash({ id: updatedId, type: "update" });
@@ -118,22 +117,27 @@ export default function AdminPage() {
   async function handleDeleteConfirm() {
     if (!deleteAppt) return;
 
-    try {
-      const deletedId = deleteAppt.id;
+    const deletedId = deleteAppt.id;
+    setShowDelete(false);
+    setDeleteAppt(null);
 
+    // Add to deletedRows to keep row visible for flash
+    setDeletedRows((prev) => [...prev, deletedId]);
+
+    try {
       await fetch("/api/admin", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: deleteAppt.id }),
+        body: JSON.stringify({ id: deletedId }),
       });
 
-      setShowDelete(false);
-      setDeleteAppt(null);
-
-      await fetchAppointments(false);
-
       setFlash({ id: deletedId, type: "delete" });
-      setTimeout(() => setFlash(null), 1000);
+
+      setTimeout(() => {
+        setFlash(null);
+        setAppointments((prev) => prev.filter((a) => a.id !== deletedId));
+        setDeletedRows((prev) => prev.filter((id) => id !== deletedId));
+      }, 1000);
     } catch (err) {
       console.error("Error deleting appointment:", err);
     }
@@ -227,7 +231,9 @@ export default function AdminPage() {
 
         {/* TABLE */}
         {loading ? (
-          <p className="text-zinc-700 dark:text-zinc-300">Loading appointments...</p>
+          <p className="text-zinc-700 dark:text-zinc-300">
+            Loading appointments...
+          </p>
         ) : filteredAppointments.length > 0 ? (
           <>
             <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-700">
@@ -242,77 +248,73 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {currentAppointments.map((appt, i) => (
-                    <tr
-                      key={appt.id}
-                      className={`
-                        border-t border-zinc-200 dark:border-zinc-700
-                        transition-colors
+                  {currentAppointments.map((appt, i) => {
+                    const isDeleted = deletedRows.includes(appt.id);
 
-                        ${i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50 dark:bg-zinc-800"}
-
-                        ${flash?.id === appt.id && flash.type === "add"
-                          ? "animate-flash-green"
-                          : ""
-                        }
-                        ${flash?.id === appt.id && flash.type === "update"
-                          ? "animate-flash-blue"
-                          : ""
-                        }
-                        ${flash?.id === appt.id && flash.type === "delete"
-                          ? "animate-flash-red"
-                          : ""
-                        }
-                      `}
-                    >
-                      <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">
-                        {appt.name}
-                      </td>
-                      <td className="px-4 py-3">{appt.contact}</td>
-                      <td className="px-4 py-3">
-                        {new Date(appt.datetime).toLocaleString(undefined, {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
-                        {appt.createdAt
-                          ? new Date(appt.createdAt).toLocaleString(undefined, {
+                    return (
+                      <tr
+                        key={appt.id}
+                        className={`
+                          border-t border-zinc-200 dark:border-zinc-700
+                          transition-colors
+                          ${i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50 dark:bg-zinc-800"}
+                          ${flash?.id === appt.id && flash.type === "add" ? "animate-flash-green" : ""}
+                          ${flash?.id === appt.id && flash.type === "update" ? "animate-flash-blue" : ""}
+                          ${flash?.id === appt.id && flash.type === "delete" ? "animate-flash-red" : ""}
+                          ${isDeleted ? "opacity-50" : ""}
+                        `}
+                      >
+                        <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">
+                          {appt.name}
+                        </td>
+                        <td className="px-4 py-3">{appt.contact}</td>
+                        <td className="px-4 py-3">
+                          {new Date(appt.datetime).toLocaleString(undefined, {
                             dateStyle: "medium",
                             timeStyle: "short",
-                          })
-                          : "—"}
-                      </td>
-                      <td className="px-4 py-3 flex justify-center gap-2">
-                        <button
-                          onClick={() => handleEdit(appt)}
-                          className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(appt)}
-                          className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                          })}
+                        </td>
+                        <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+                          {appt.createdAt
+                            ? new Date(appt.createdAt).toLocaleString(undefined, {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            })
+                            : "—"}
+                        </td>
+                        <td className="px-4 py-3 flex justify-center gap-2">
+                          <button
+                            onClick={() => handleEdit(appt)}
+                            className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClick(appt)}
+                            className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
             {/* PAGINATION */}
             <div className="flex justify-between items-center mt-4 text-sm text-zinc-600 dark:text-zinc-300">
-              <span>Page {currentPage} of {totalPages}</span>
+              <span>
+                Page {currentPage} of {totalPages}
+              </span>
               <div className="flex gap-2">
                 <button
                   onClick={handlePrev}
                   disabled={currentPage === 1}
                   className={`px-3 py-1 rounded border border-zinc-300 dark:border-zinc-600 transition ${currentPage === 1
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                      ? "opacity-50 cursor-not-allowed"
+                      : "hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     }`}
                 >
                   Previous
@@ -321,8 +323,8 @@ export default function AdminPage() {
                   onClick={handleNext}
                   disabled={currentPage === totalPages}
                   className={`px-3 py-1 rounded border border-zinc-300 dark:border-zinc-600 transition ${currentPage === totalPages
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                      ? "opacity-50 cursor-not-allowed"
+                      : "hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     }`}
                 >
                   Next

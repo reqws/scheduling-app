@@ -25,21 +25,50 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-@keyframes flashGreen {
-  0% { background-color: #bbf7d0; } /* light green */
-  100% { background-color: transparent; }
+@keyframes flash-green {
+
+  0%,
+  100% {
+    background-color: #22c55e;
+  }
+
+  50% {
+    background-color: transparent;
+  }
 }
 
-@keyframes flashBlue {
-  0% { background-color: #bfdbfe; } /* light blue */
-  100% { background-color: transparent; }
+@keyframes flash-blue {
+
+  0%,
+  100% {
+    background-color: #3b82f6;
+  }
+
+  50% {
+    background-color: transparent;
+  }
 }
 
-@keyframes flashRed {
-  0% { background-color: #fecaca; } /* light red */
-  100% { background-color: transparent; }
+@keyframes flash-red {
+
+  0%,
+  100% {
+    background-color: #ef4444;
+  }
+
+  50% {
+    background-color: transparent;
+  }
 }
 
-.animate-flash-green { animation: flashGreen 1s ease-out; }
-.animate-flash-blue { animation: flashBlue 1s ease-out; }
-.animate-flash-red { animation: flashRed 1s ease-out; }
+.animate-flash-green {
+  animation: flash-green 1s ease-in-out;
+}
+
+.animate-flash-blue {
+  animation: flash-blue 1s ease-in-out;
+}
+
+.animate-flash-red {
+  animation: flash-red 1s ease-in-out;
+}
