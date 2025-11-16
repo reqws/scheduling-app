@@ -121,7 +121,6 @@ export default function AdminPage() {
     setShowDelete(false);
     setDeleteAppt(null);
 
-    // Add to deletedRows to keep row visible for flash
     setDeletedRows((prev) => [...prev, deletedId]);
 
     try {
@@ -220,7 +219,6 @@ export default function AdminPage() {
             onChange={(e) => setForm({ ...form, datetime: e.target.value })}
             className={`${inputClass} flex-1`}
           />
-
           <button
             type="submit"
             className="rounded-md bg-green-600 px-4 py-2 text-white font-medium hover:bg-green-700 transition-colors"
@@ -257,10 +255,22 @@ export default function AdminPage() {
                         className={`
                           border-t border-zinc-200 dark:border-zinc-700
                           transition-colors
-                          ${i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50 dark:bg-zinc-800"}
-                          ${flash?.id === appt.id && flash.type === "add" ? "animate-flash-green" : ""}
-                          ${flash?.id === appt.id && flash.type === "update" ? "animate-flash-blue" : ""}
-                          ${flash?.id === appt.id && flash.type === "delete" ? "animate-flash-red" : ""}
+                          ${i % 2 === 0
+                            ? "bg-white dark:bg-zinc-900"
+                            : "bg-zinc-50 dark:bg-zinc-800"
+                          }
+                          ${flash?.id === appt.id && flash.type === "add"
+                            ? "animate-flash-green"
+                            : ""
+                          }
+                          ${flash?.id === appt.id && flash.type === "update"
+                            ? "animate-flash-blue"
+                            : ""
+                          }
+                          ${flash?.id === appt.id && flash.type === "delete"
+                            ? "animate-flash-red"
+                            : ""
+                          }
                           ${isDeleted ? "opacity-50" : ""}
                         `}
                       >
@@ -276,10 +286,13 @@ export default function AdminPage() {
                         </td>
                         <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
                           {appt.createdAt
-                            ? new Date(appt.createdAt).toLocaleString(undefined, {
-                              dateStyle: "medium",
-                              timeStyle: "short",
-                            })
+                            ? new Date(appt.createdAt).toLocaleString(
+                              undefined,
+                              {
+                                dateStyle: "medium",
+                                timeStyle: "short",
+                              }
+                            )
                             : "—"}
                         </td>
                         <td className="px-4 py-3 flex justify-center gap-2">
@@ -304,31 +317,56 @@ export default function AdminPage() {
             </div>
 
             {/* PAGINATION */}
-            <div className="flex justify-between items-center mt-4 text-sm text-zinc-600 dark:text-zinc-300">
-              <span>
-                Page {currentPage} of {totalPages}
-              </span>
-              <div className="flex gap-2">
-                <button
-                  onClick={handlePrev}
-                  disabled={currentPage === 1}
-                  className={`px-3 py-1 rounded border border-zinc-300 dark:border-zinc-600 transition ${currentPage === 1
+            <div className="flex flex-col gap-3 mt-4 text-sm text-zinc-600 dark:text-zinc-300">
+              <div className="flex justify-between items-center">
+                <span>
+                  Page {currentPage} of {totalPages}
+                </span>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={handlePrev}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-1 rounded border border-zinc-300 dark:border-zinc-600 transition ${currentPage === 1
                       ? "opacity-50 cursor-not-allowed"
                       : "hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                    }`}
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={handleNext}
-                  disabled={currentPage === totalPages}
-                  className={`px-3 py-1 rounded border border-zinc-300 dark:border-zinc-600 transition ${currentPage === totalPages
+                      }`}
+                  >
+                    Previous
+                  </button>
+
+                  <button
+                    onClick={handleNext}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-1 rounded border border-zinc-300 dark:border-zinc-600 transition ${currentPage === totalPages
                       ? "opacity-50 cursor-not-allowed"
                       : "hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                    }`}
-                >
-                  Next
-                </button>
+                      }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+
+              {/* PAGE SELECTOR (NUMBERED PAGES) */}
+              <div className="flex flex-wrap gap-1 justify-center">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`
+                        px-3 py-1 rounded border text-sm transition
+                        ${currentPage === page
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                        }
+                      `}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
               </div>
             </div>
           </>
