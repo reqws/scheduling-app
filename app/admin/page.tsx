@@ -22,8 +22,9 @@ export default function AdminPage() {
 
   // FLASH STATE
   const [flash, setFlash] = useState<{
-    id: string;
-    type: "add" | "update" | "delete";
+    id?: string;
+    type: "add" | "update" | "delete" | "error";
+    message?: string;
   } | null>(null);
 
   // Track rows temporarily for delete animation
@@ -53,7 +54,14 @@ export default function AdminPage() {
 
   // ---------- CRUD Handlers ----------
   async function handleAdd() {
-    if (!form.name || !form.contact || !form.datetime) return;
+    if (!form.name || !form.contact || !form.datetime) {
+      setFlash({
+        type: "error",
+        message: "All fields are required!"
+      });
+      setTimeout(() => setFlash(null), 1500);
+      return;
+    }
 
     try {
       const res = await fetch("/api/admin", {
@@ -192,6 +200,11 @@ export default function AdminPage() {
         />
 
         {/* ADD FORM */}
+        {flash?.type === "error" && (
+          <div className="mb-4 p-3 rounded-md bg-red-500 text-white text-sm animate-pulse">
+            {flash.message}
+          </div>
+        )}
         <form
           onSubmit={(e) => {
             e.preventDefault();
