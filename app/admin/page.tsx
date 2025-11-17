@@ -200,8 +200,15 @@ export default function AdminPage() {
         />
 
         {/* ADD FORM */}
+        {/* TOAST POPUP */}
         {flash?.type === "error" && (
-          <div className="mb-4 p-3 rounded-md bg-red-500 text-white text-sm animate-pulse">
+          <div className="
+    fixed top-5 right-5 
+    bg-red-600 text-white 
+    px-4 py-2 rounded-md 
+    shadow-lg 
+    animate-slide-in
+  ">
             {flash.message}
           </div>
         )}
