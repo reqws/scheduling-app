@@ -20,21 +20,22 @@ export default function AdminPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleteAppt, setDeleteAppt] = useState<Appointment | null>(null);
 
-  // FLASH STATE
+  // ⭐ UPDATED: Replace single flash with list of toasts
+  const [flashList, setFlashList] = useState<
+    { id: string; type: "error"; message: string }[]
+  >([]);
+
+  // For add/update/delete row highlight only (unchanged)
   const [flash, setFlash] = useState<{
     id?: string;
-    type: "add" | "update" | "delete" | "error";
-    message?: string;
+    type: "add" | "update" | "delete";
   } | null>(null);
 
-  // Track rows temporarily for delete animation
   const [deletedRows, setDeletedRows] = useState<string[]>([]);
-
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // ---------- Fetch Appointments ----------
+  // -------- Fetch ----------
   useEffect(() => {
     fetchAppointments(true);
   }, []);
@@ -52,14 +53,25 @@ export default function AdminPage() {
     }
   }
 
-  // ---------- CRUD Handlers ----------
+  // -------- ADD ----------
   async function handleAdd() {
     if (!form.name || !form.contact || !form.datetime) {
-      setFlash({
-        type: "error",
-        message: "All fields are required!"
+      // ⭐ UPDATED: stacking toast logic
+      const newToast = {
+        id: crypto.randomUUID(),
+        type: "error" as const,
+        message: "All fields are required!",
+      };
+
+      setFlashList((prev) => {
+        const updated = [...prev, newToast];
+        return updated.slice(-3); // max 3 toasts
       });
-      setTimeout(() => setFlash(null), 1500);
+
+      setTimeout(() => {
+        setFlashList((prev) => prev.filter((t) => t.id !== newToast.id));
+      }, 1500);
+
       return;
     }
 
@@ -93,6 +105,7 @@ export default function AdminPage() {
     });
   };
 
+  // -------- UPDATE ----------
   async function handleUpdate() {
     if (!editingAppt) return;
 
@@ -122,6 +135,7 @@ export default function AdminPage() {
     setShowDelete(true);
   };
 
+  // -------- DELETE ----------
   async function handleDeleteConfirm() {
     if (!deleteAppt) return;
 
@@ -150,7 +164,7 @@ export default function AdminPage() {
     }
   }
 
-  // ---------- Filter + Pagination ----------
+  // -------- Filtering & Pagination ----------
   const filteredAppointments = appointments.filter(
     (appt) =>
       appt.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -170,10 +184,27 @@ export default function AdminPage() {
   const inputClass =
     "rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
 
-  // ---------- Render ----------
+  // -------- Render ----------
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black flex flex-col items-center p-10">
       <div className="w-full max-w-5xl bg-white dark:bg-zinc-900 rounded-lg shadow-md p-6">
+
+        {/* ⭐ UPDATED: STACKED ERROR TOASTS */}
+        {flashList.map((toast, i) => (
+          <div
+            key={toast.id}
+            className="
+              fixed right-5
+              bg-red-600 text-white 
+              px-4 py-2 rounded-md shadow-lg 
+              animate-slide-in
+            "
+            style={{ top: `${20 + i * 60}px` }}
+          >
+            {toast.message}
+          </div>
+        ))}
+
         {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
@@ -200,18 +231,6 @@ export default function AdminPage() {
         />
 
         {/* ADD FORM */}
-        {/* TOAST POPUP */}
-        {flash?.type === "error" && (
-          <div className="
-    fixed top-5 right-5 
-    bg-red-600 text-white 
-    px-4 py-2 rounded-md 
-    shadow-lg 
-    animate-slide-in
-  ">
-            {flash.message}
-          </div>
-        )}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -368,7 +387,6 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* PAGE SELECTOR (NUMBERED PAGES) */}
               <div className="flex flex-wrap gap-1 justify-center">
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map(
                   (page) => (
