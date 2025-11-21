@@ -356,56 +356,47 @@ export default function AdminPage() {
             </div>
 
             {/* PAGINATION */}
-            <div className="flex flex-col gap-3 mt-4 text-sm text-zinc-600 dark:text-zinc-300">
-              <div className="flex justify-between items-center">
-                <span>
-                  Page {currentPage} of {totalPages}
-                </span>
+            <div className="flex flex-wrap gap-1 justify-center">
+              {(() => {
+                const pages = [];
 
-                <div className="flex gap-2">
+                // Determine the 3-page window
+                let start = Math.max(1, currentPage - 1);
+                let end = Math.min(totalPages, start + 2);
+                start = Math.max(1, end - 2);
+
+                // Helper to render a page button
+                const PageButton = (page: number) => (
                   <button
-                    onClick={handlePrev}
-                    disabled={currentPage === 1}
-                    className={`px-3 py-1 rounded border border-zinc-300 dark:border-zinc-600 transition ${currentPage === 1
-                      ? "opacity-50 cursor-not-allowed"
-                      : "hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                      }`}
-                  >
-                    Previous
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-3 py-1 rounded border text-sm transition ${currentPage === page
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"}`}>
+                    {page}
                   </button>
+                );
 
-                  <button
-                    onClick={handleNext}
-                    disabled={currentPage === totalPages}
-                    className={`px-3 py-1 rounded border border-zinc-300 dark:border-zinc-600 transition ${currentPage === totalPages
-                      ? "opacity-50 cursor-not-allowed"
-                      : "hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                      }`}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
+                // SHOW FIRST PAGE + "..." IF NEEDED
+                if (start > 1) {
+                  pages.push(PageButton(1));
+                  if (start > 2) pages.push(<span key="start-ellipsis">...</span>);
+                }
 
-              <div className="flex flex-wrap gap-1 justify-center">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`
-                        px-3 py-1 rounded border text-sm transition
-                        ${currentPage === page
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                        }
-                      `}
-                    >
-                      {page}
-                    </button>
-                  )
-                )}
-              </div>
+                // MAIN THREE PAGES
+                for (let p = start; p <= end; p++) {
+                  pages.push(PageButton(p));
+                }
+
+                // SHOW "..." + LAST PAGE IF NEEDED
+                if (end < totalPages) {
+                  if (end < totalPages - 1)
+                    pages.push(<span key="end-ellipsis">...</span>);
+                  pages.push(PageButton(totalPages));
+                }
+
+                return pages;
+              })()}
             </div>
           </>
         ) : (
