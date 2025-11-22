@@ -356,47 +356,48 @@ export default function AdminPage() {
             </div>
 
             {/* PAGINATION */}
-            <div className="flex flex-wrap gap-1 justify-center">
-              {(() => {
-                const pages = [];
+            <div className="relative">
+              {/* LOWER-LEFT PAGE LABEL */}
+              <div className="absolute left-0 bottom-0 text-xs text-zinc-500 dark:text-zinc-400">
+                Page {currentPage} of {totalPages}
+              </div>
 
-                // Determine the 3-page window
-                let start = Math.max(1, currentPage - 1);
-                let end = Math.min(totalPages, start + 2);
-                start = Math.max(1, end - 2);
+              {/* PAGINATION BUTTONS */}
+              <div className="flex flex-wrap gap-1 justify-center mt-3">
+                {(() => {
+                  const pages = [];
 
-                // Helper to render a page button
-                const PageButton = (page: number) => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`px-3 py-1 rounded border text-sm transition ${currentPage === page
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"}`}>
-                    {page}
-                  </button>
-                );
+                  let start = Math.max(1, currentPage - 1);
+                  let end = Math.min(totalPages, start + 2);
+                  start = Math.max(1, end - 2);
 
-                // SHOW FIRST PAGE + "..." IF NEEDED
-                if (start > 1) {
-                  pages.push(PageButton(1));
-                  if (start > 2) pages.push(<span key="start-ellipsis">...</span>);
-                }
+                  const PageButton = (page: number) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-3 py-1 rounded border text-sm transition ${currentPage === page
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                        }`}>
+                      {page}
+                    </button>
+                  );
 
-                // MAIN THREE PAGES
-                for (let p = start; p <= end; p++) {
-                  pages.push(PageButton(p));
-                }
+                  if (start > 1) {
+                    pages.push(PageButton(1));
+                    if (start > 2) pages.push(<span key="start-ellipsis">...</span>);
+                  }
 
-                // SHOW "..." + LAST PAGE IF NEEDED
-                if (end < totalPages) {
-                  if (end < totalPages - 1)
-                    pages.push(<span key="end-ellipsis">...</span>);
-                  pages.push(PageButton(totalPages));
-                }
+                  for (let p = start; p <= end; p++) pages.push(PageButton(p));
 
-                return pages;
-              })()}
+                  if (end < totalPages) {
+                    if (end < totalPages - 1) pages.push(<span key="end-ellipsis">...</span>);
+                    pages.push(PageButton(totalPages));
+                  }
+
+                  return pages;
+                })()}
+              </div>
             </div>
           </>
         ) : (
