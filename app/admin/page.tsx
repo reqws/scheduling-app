@@ -17,15 +17,11 @@ export default function AdminPage() {
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [showDelete, setShowDelete] = useState(false);
-  const [deleteAppt, setDeleteAppt] = useState<Appointment | null>(null);
 
-  // ⭐ UPDATED: Replace single flash with list of toasts
   const [flashList, setFlashList] = useState<
     { id: string; type: "error"; message: string }[]
   >([]);
 
-  // For add/update/delete row highlight only (unchanged)
   const [flash, setFlash] = useState<{
     id?: string;
     type: "add" | "update" | "delete";
@@ -35,65 +31,56 @@ export default function AdminPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // -------- Fetch ----------
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleteAppt, setDeleteAppt] = useState<Appointment | null>(null);
+
   useEffect(() => {
-    fetchAppointments(true);
+    fetchAppointments();
   }, []);
 
-  async function fetchAppointments(showLoader = true) {
+  async function fetchAppointments() {
     try {
-      if (showLoader) setLoading(true);
+      setLoading(true);
       const res = await fetch("/api/admin");
       const data = await res.json();
       setAppointments(data);
-    } catch (err) {
-      console.error("Error fetching appointments:", err);
     } finally {
-      if (showLoader) setLoading(false);
+      setLoading(false);
     }
   }
 
-  // -------- ADD ----------
   async function handleAdd() {
     if (!form.name || !form.contact || !form.datetime) {
-      // ⭐ UPDATED: stacking toast logic
       const newToast = {
         id: crypto.randomUUID(),
         type: "error" as const,
         message: "All fields are required!",
       };
 
-      setFlashList((prev) => {
-        const updated = [...prev, newToast];
-        return updated.slice(-3); // max 3 toasts
-      });
+      setFlashList((prev) => [...prev, newToast].slice(-3));
 
       setTimeout(() => {
         setFlashList((prev) => prev.filter((t) => t.id !== newToast.id));
-      }, 1500);
+      }, 2000);
 
       return;
     }
 
-    try {
-      const res = await fetch("/api/admin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+    const res = await fetch("/api/admin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
 
-      if (!res.ok) throw new Error("Failed to add appointment");
+    if (!res.ok) return alert("Error adding appointment");
 
-      const newAppointment = await res.json();
+    const newAppt = await res.json();
+    setForm({ name: "", contact: "", datetime: "" });
 
-      setForm({ name: "", contact: "", datetime: "" });
-      await fetchAppointments(false);
+    await fetchAppointments();
 
-      setFlash({ id: newAppointment.id, type: "add" });
-      setTimeout(() => setFlash(null), 1000);
-    } catch (err: any) {
-      alert(err.message || "Error adding appointment");
-    }
+    setFlash({ id: newAppt.id, type: "add" });
+    setTimeout(() => setFlash(null), 1000);
   }
 
   const handleEdit = (appt: Appointment) => {
@@ -105,115 +92,85 @@ export default function AdminPage() {
     });
   };
 
-  // -------- UPDATE ----------
   async function handleUpdate() {
     if (!editingAppt) return;
 
-    try {
-      const res = await fetch("/api/admin", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: editingAppt.id, ...form }),
-      });
+    const res = await fetch("/api/admin", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: editingAppt.id, ...form }),
+    });
 
-      if (!res.ok) throw new Error("Failed to update appointment");
+    if (!res.ok) return alert("Error updating");
 
-      const updatedId = editingAppt.id;
-      setEditingAppt(null);
-      setForm({ name: "", contact: "", datetime: "" });
-      await fetchAppointments(false);
+    const updatedId = editingAppt.id;
 
-      setFlash({ id: updatedId, type: "update" });
-      setTimeout(() => setFlash(null), 1000);
-    } catch (err: any) {
-      alert(err.message || "Error updating appointment");
-    }
+    setEditingAppt(null);
+    setForm({ name: "", contact: "", datetime: "" });
+
+    await fetchAppointments();
+
+    setFlash({ id: updatedId, type: "update" });
+    setTimeout(() => setFlash(null), 1000);
   }
 
-  const handleDeleteClick = (appt: Appointment) => {
-    setDeleteAppt(appt);
-    setShowDelete(true);
-  };
-
-  // -------- DELETE ----------
   async function handleDeleteConfirm() {
     if (!deleteAppt) return;
 
-    const deletedId = deleteAppt.id;
+    const id = deleteAppt.id;
+
     setShowDelete(false);
     setDeleteAppt(null);
+    setDeletedRows((prev) => [...prev, id]);
 
-    setDeletedRows((prev) => [...prev, deletedId]);
+    await fetch("/api/admin", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
 
-    try {
-      await fetch("/api/admin", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: deletedId }),
-      });
+    setFlash({ id, type: "delete" });
 
-      setFlash({ id: deletedId, type: "delete" });
-
-      setTimeout(() => {
-        setFlash(null);
-        setAppointments((prev) => prev.filter((a) => a.id !== deletedId));
-        setDeletedRows((prev) => prev.filter((id) => id !== deletedId));
-      }, 1000);
-    } catch (err) {
-      console.error("Error deleting appointment:", err);
-    }
+    setTimeout(() => {
+      setFlash(null);
+      setAppointments((prev) => prev.filter((a) => a.id !== id));
+    }, 1000);
   }
 
-  // -------- Filtering & Pagination ----------
-  const filteredAppointments = appointments.filter(
-    (appt) =>
-      appt.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      appt.contact.toLowerCase().includes(searchQuery.toLowerCase())
+  const filtered = appointments.filter(
+    (a) =>
+      a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      a.contact.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentAppointments = filteredAppointments.slice(
-    startIndex,
-    startIndex + itemsPerPage
-  );
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const start = (currentPage - 1) * itemsPerPage;
+  const current = filtered.slice(start, start + itemsPerPage);
 
-  const handlePrev = () => setCurrentPage((p) => Math.max(p - 1, 1));
-  const handleNext = () => setCurrentPage((p) => Math.min(p + 1, totalPages));
+  const inputClass = "input-field";
 
-  const inputClass =
-    "rounded-md border border-zinc-300 bg-white p-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
-
-  // -------- Render ----------
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black flex flex-col items-center p-10">
-      <div className="w-full max-w-5xl bg-white dark:bg-zinc-900 rounded-lg shadow-md p-6">
+    <div className="min-h-screen flex justify-center items-start py-12 px-4 bg-gradient-to-br from-zinc-100 to-zinc-200 dark:from-black dark:to-zinc-900">
+      <div className="w-full max-w-5xl bg-white/90 dark:bg-zinc-900/80 backdrop-blur-md rounded-2xl shadow-2xl border border-zinc-300 dark:border-zinc-800 p-8 animate-fade">
 
-        {/* ⭐ UPDATED: STACKED ERROR TOASTS */}
-        {flashList.map((toast, i) => (
+        {/* TOASTS */}
+        {flashList.map((t, i) => (
           <div
-            key={toast.id}
-            className="
-              fixed right-5
-              bg-red-600 text-white 
-              px-4 py-2 rounded-md shadow-lg 
-              animate-slide-in
-            "
+            key={t.id}
+            className="fixed right-5 bg-red-600 text-white shadow-lg px-4 py-2 rounded-lg animate-slide-in"
             style={{ top: `${20 + i * 60}px` }}
           >
-            {toast.message}
+            {t.message}
           </div>
         ))}
 
         {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-            Appointment Admin
+          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
+            Admin Panel
           </h1>
-          <Link
-            href="/"
-            className="rounded-md bg-zinc-800 px-3 py-2 text-white text-sm hover:bg-zinc-700 transition-colors"
-          >
+
+          <Link href="/" className="btn-secondary px-4 py-2 text-sm">
             Back to Home
           </Link>
         </div>
@@ -221,13 +178,13 @@ export default function AdminPage() {
         {/* SEARCH */}
         <input
           type="text"
-          placeholder="Search by name or contact..."
+          placeholder="Search appointments..."
           value={searchQuery}
           onChange={(e) => {
             setSearchQuery(e.target.value);
             setCurrentPage(1);
           }}
-          className={`${inputClass} mb-6 w-full`}
+          className={`${inputClass} mb-6`}
         />
 
         {/* ADD FORM */}
@@ -236,184 +193,131 @@ export default function AdminPage() {
             e.preventDefault();
             handleAdd();
           }}
-          className="flex flex-col sm:flex-row gap-2 mb-6"
+          className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-6"
         >
           <input
             type="text"
             placeholder="Name"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className={`${inputClass} flex-1`}
+            className={inputClass}
           />
           <input
             type="text"
             placeholder="Contact"
             value={form.contact}
             onChange={(e) => setForm({ ...form, contact: e.target.value })}
-            className={`${inputClass} flex-1`}
+            className={inputClass}
           />
           <input
             type="datetime-local"
             value={form.datetime}
             onChange={(e) => setForm({ ...form, datetime: e.target.value })}
-            className={`${inputClass} flex-1`}
+            className={inputClass}
           />
-          <button
-            type="submit"
-            className="rounded-md bg-green-600 px-4 py-2 text-white font-medium hover:bg-green-700 transition-colors"
-          >
-            Add
-          </button>
+          <button className="btn-primary">Add</button>
         </form>
 
         {/* TABLE */}
-        {loading ? (
-          <p className="text-zinc-700 dark:text-zinc-300">
-            Loading appointments...
-          </p>
-        ) : filteredAppointments.length > 0 ? (
-          <>
-            <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-700">
-              <table className="min-w-full text-sm text-left text-zinc-700 dark:text-zinc-300">
-                <thead className="sticky top-0 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 uppercase text-xs font-semibold">
-                  <tr>
-                    <th className="px-4 py-3">Name</th>
-                    <th className="px-4 py-3">Contact</th>
-                    <th className="px-4 py-3">Appointment</th>
-                    <th className="px-4 py-3">Created At</th>
-                    <th className="px-4 py-3 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentAppointments.map((appt, i) => {
-                    const isDeleted = deletedRows.includes(appt.id);
+        <div className="overflow-x-auto rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-lg">
+          {loading ? (
+            <p className="p-4 text-center text-zinc-600 dark:text-zinc-400">
+              Loading appointments...
+            </p>
+          ) : current.length === 0 ? (
+            <p className="p-6 text-center text-zinc-600 dark:text-zinc-400">
+              No appointments found.
+            </p>
+          ) : (
+            <table className="min-w-full text-sm text-zinc-700 dark:text-zinc-300">
+              <thead className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 uppercase text-xs font-semibold">
+                <tr>
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Contact</th>
+                  <th className="px-4 py-3">Appointment</th>
+                  <th className="px-4 py-3">Created</th>
+                  <th className="px-4 py-3 text-center">Actions</th>
+                </tr>
+              </thead>
 
-                    return (
-                      <tr
-                        key={appt.id}
-                        className={`
-                          border-t border-zinc-200 dark:border-zinc-700
-                          transition-colors
-                          ${i % 2 === 0
-                            ? "bg-white dark:bg-zinc-900"
-                            : "bg-zinc-50 dark:bg-zinc-800"
-                          }
-                          ${flash?.id === appt.id && flash.type === "add"
-                            ? "animate-flash-green"
-                            : ""
-                          }
-                          ${flash?.id === appt.id && flash.type === "update"
-                            ? "animate-flash-blue"
-                            : ""
-                          }
-                          ${flash?.id === appt.id && flash.type === "delete"
-                            ? "animate-flash-red"
-                            : ""
-                          }
-                          ${isDeleted ? "opacity-50" : ""}
-                        `}
+              <tbody>
+                {current.map((appt, i) => (
+                  <tr
+                    key={appt.id}
+                    className={`
+                      border-t border-zinc-200 dark:border-zinc-700
+                      ${i % 2 ? "bg-white/40 dark:bg-zinc-900/40" : "bg-white/20 dark:bg-zinc-800/30"}
+                      ${flash?.id === appt.id && flash.type === "add" ? "animate-flash-green" : ""}
+                      ${flash?.id === appt.id && flash.type === "update" ? "animate-flash-blue" : ""}
+                      ${flash?.id === appt.id && flash.type === "delete" ? "animate-flash-red" : ""}
+                    `}
+                  >
+                    <td className="px-4 py-3 font-medium">{appt.name}</td>
+                    <td className="px-4 py-3">{appt.contact}</td>
+                    <td className="px-4 py-3">
+                      {new Date(appt.datetime).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      {appt.createdAt
+                        ? new Date(appt.createdAt).toLocaleString()
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-center flex justify-center gap-2">
+                      <button
+                        onClick={() => handleEdit(appt)}
+                        className="btn-primary px-3 py-1 text-xs"
                       >
-                        <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">
-                          {appt.name}
-                        </td>
-                        <td className="px-4 py-3">{appt.contact}</td>
-                        <td className="px-4 py-3">
-                          {new Date(appt.datetime).toLocaleString(undefined, {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          })}
-                        </td>
-                        <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
-                          {appt.createdAt
-                            ? new Date(appt.createdAt).toLocaleString(
-                              undefined,
-                              {
-                                dateStyle: "medium",
-                                timeStyle: "short",
-                              }
-                            )
-                            : "—"}
-                        </td>
-                        <td className="px-4 py-3 flex justify-center gap-2">
-                          <button
-                            onClick={() => handleEdit(appt)}
-                            className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClick(appt)}
-                            className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition"
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDeleteAppt(appt);
+                          setShowDelete(true);
+                        }}
+                        className="btn-gray bg-red-600 hover:bg-red-700 px-3 py-1 text-xs"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
 
-            {/* PAGINATION */}
-            <div className="relative">
-              {/* LOWER-LEFT PAGE LABEL */}
-              <div className="absolute left-0 bottom-0 text-xs text-zinc-500 dark:text-zinc-400">
-                Page {currentPage} of {totalPages}
-              </div>
+        {/* PAGINATION */}
+        <div className="mt-4 flex justify-center gap-2 text-sm">
+          <button
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            className="btn-gray px-3 py-1 disabled:opacity-50"
+          >
+            Prev
+          </button>
 
-              {/* PAGINATION BUTTONS */}
-              <div className="flex flex-wrap gap-1 justify-center mt-3">
-                {(() => {
-                  const pages = [];
+          <span className="text-zinc-600 dark:text-zinc-400">
+            Page {currentPage} of {totalPages}
+          </span>
 
-                  let start = Math.max(1, currentPage - 1);
-                  let end = Math.min(totalPages, start + 2);
-                  start = Math.max(1, end - 2);
-
-                  const PageButton = (page: number) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-3 py-1 rounded border text-sm transition ${currentPage === page
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                        }`}>
-                      {page}
-                    </button>
-                  );
-
-                  if (start > 1) {
-                    pages.push(PageButton(1));
-                    if (start > 2) pages.push(<span key="start-ellipsis">...</span>);
-                  }
-
-                  for (let p = start; p <= end; p++) pages.push(PageButton(p));
-
-                  if (end < totalPages) {
-                    if (end < totalPages - 1) pages.push(<span key="end-ellipsis">...</span>);
-                    pages.push(PageButton(totalPages));
-                  }
-
-                  return pages;
-                })()}
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="text-center py-8 text-zinc-600 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-md">
-            No appointments found.
-          </div>
-        )}
+          <button
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            className="btn-gray px-3 py-1 disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       {/* EDIT MODAL */}
       {editingAppt && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-lg w-80">
-            <h2 className="text-xl font-semibold text-center mb-4 text-zinc-900 dark:text-zinc-50">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 shadow-xl border border-zinc-300 dark:border-zinc-700 w-80 animate-scale">
+            <h2 className="text-xl font-semibold mb-4 text-center">
               Edit Appointment
             </h2>
+
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -423,36 +327,35 @@ export default function AdminPage() {
             >
               <input
                 type="text"
-                placeholder="Name"
                 value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, name: e.target.value })
+                }
                 className={inputClass}
               />
               <input
                 type="text"
-                placeholder="Contact"
                 value={form.contact}
-                onChange={(e) => setForm({ ...form, contact: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, contact: e.target.value })
+                }
                 className={inputClass}
               />
               <input
                 type="datetime-local"
                 value={form.datetime}
-                onChange={(e) => setForm({ ...form, datetime: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, datetime: e.target.value })
+                }
                 className={inputClass}
               />
 
-              <div className="flex gap-2 mt-3">
-                <button
-                  type="submit"
-                  className="w-full rounded-md bg-blue-600 py-2 text-white font-medium hover:bg-blue-700 transition-colors"
-                >
-                  Save
-                </button>
+              <div className="flex gap-2 mt-4">
+                <button className="btn-primary w-full">Save</button>
                 <button
                   type="button"
                   onClick={() => setEditingAppt(null)}
-                  className="w-full rounded-md bg-gray-400 py-2 text-white font-medium hover:bg-gray-500 transition-colors"
+                  className="btn-gray w-full"
                 >
                   Cancel
                 </button>
@@ -463,26 +366,27 @@ export default function AdminPage() {
       )}
 
       {/* DELETE MODAL */}
-      {showDelete && deleteAppt && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-lg w-80 text-center">
-            <h2 className="text-xl font-semibold mb-4 text-zinc-900 dark:text-zinc-50">
-              Delete Appointment
+      {showDelete && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 shadow-xl border border-zinc-300 dark:border-zinc-700 w-80 animate-scale">
+            <h2 className="text-xl font-semibold mb-4 text-center text-red-600">
+              Confirm Delete
             </h2>
-            <p className="text-zinc-700 dark:text-zinc-300 mb-5">
-              Are you sure you want to delete{" "}
-              <span className="font-medium">{deleteAppt.name}</span>?
+            <p className="text-center text-zinc-700 dark:text-zinc-300 mb-6">
+              Delete{" "}
+              <span className="font-semibold">{deleteAppt?.name}</span>?
             </p>
+
             <div className="flex gap-2">
               <button
                 onClick={handleDeleteConfirm}
-                className="w-full rounded-md bg-red-600 py-2 text-white font-medium hover:bg-red-700 transition-colors"
+                className="btn-primary bg-red-600 hover:bg-red-700 w-full"
               >
                 Delete
               </button>
               <button
                 onClick={() => setShowDelete(false)}
-                className="w-full rounded-md bg-gray-400 py-2 text-white font-medium hover:bg-gray-500 transition-colors"
+                className="btn-gray w-full"
               >
                 Cancel
               </button>

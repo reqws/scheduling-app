@@ -170,5 +170,3 @@ export default function Home() {
     </div>
   );
 }
-
-/* Tailwind component classes */
