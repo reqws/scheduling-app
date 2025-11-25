@@ -229,55 +229,57 @@ export default function AdminPage() {
               No appointments found.
             </p>
           ) : (
-            <table className="min-w-full text-sm text-zinc-700 dark:text-zinc-300">
-              <thead className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 uppercase text-xs font-semibold">
+            <table className="min-w-full text-sm text-zinc-700 dark:text-zinc-300 text-center">
+              <thead className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 uppercase text-xs font-semibold text-center">
                 <tr>
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Contact</th>
                   <th className="px-4 py-3">Appointment</th>
                   <th className="px-4 py-3">Created</th>
-                  <th className="px-4 py-3 text-center">Actions</th>
+                  <th className="px-4 py-3">Actions</th>
                 </tr>
               </thead>
 
-              <tbody>
+              <tbody className="text-center">
                 {current.map((appt, i) => (
                   <tr
                     key={appt.id}
                     className={`
-                      border-t border-zinc-200 dark:border-zinc-700
-                      ${i % 2 ? "bg-white/40 dark:bg-zinc-900/40" : "bg-white/20 dark:bg-zinc-800/30"}
-                      ${flash?.id === appt.id && flash.type === "add" ? "animate-flash-green" : ""}
-                      ${flash?.id === appt.id && flash.type === "update" ? "animate-flash-blue" : ""}
-                      ${flash?.id === appt.id && flash.type === "delete" ? "animate-flash-red" : ""}
-                    `}
+              border-t border-zinc-200 dark:border-zinc-700
+              ${i % 2 ? "bg-white/40 dark:bg-zinc-900/40" : "bg-white/20 dark:bg-zinc-800/30"}
+              ${flash?.id === appt.id && flash.type === "add" ? "animate-flash-green" : ""}
+              ${flash?.id === appt.id && flash.type === "update" ? "animate-flash-blue" : ""}
+              ${flash?.id === appt.id && flash.type === "delete" ? "animate-flash-red" : ""}
+            `}
                   >
-                    <td className="px-4 py-3 font-medium">{appt.name}</td>
-                    <td className="px-4 py-3">{appt.contact}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 font-medium text-center">{appt.name}</td>
+                    <td className="px-4 py-3 text-center">{appt.contact}</td>
+                    <td className="px-4 py-3 text-center">
                       {new Date(appt.datetime).toLocaleString()}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-center">
                       {appt.createdAt
                         ? new Date(appt.createdAt).toLocaleString()
                         : "—"}
                     </td>
-                    <td className="px-4 py-3 text-center flex justify-center gap-2">
-                      <button
-                        onClick={() => handleEdit(appt)}
-                        className="btn-primary px-3 py-1 text-xs"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => {
-                          setDeleteAppt(appt);
-                          setShowDelete(true);
-                        }}
-                        className="btn-gray bg-red-600 hover:bg-red-700 px-3 py-1 text-xs"
-                      >
-                        Delete
-                      </button>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={() => handleEdit(appt)}
+                          className="btn-primary px-3 py-1 text-xs"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDeleteAppt(appt);
+                            setShowDelete(true);
+                          }}
+                          className="btn-gray bg-red-600 hover:bg-red-700 px-3 py-1 text-xs"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
