@@ -19,7 +19,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
 
   const [flashList, setFlashList] = useState<
-    { id: string; type: "error"; message: string }[]
+    { id: string; type: "error"; message: string; leaving?: boolean }[]
   >([]);
 
   const [flash, setFlash] = useState<{
@@ -49,20 +49,33 @@ export default function AdminPage() {
     }
   }
 
+  // Toast helper
+  function createToast(message: string) {
+    const toast = {
+      id: crypto.randomUUID(),
+      type: "error" as const,
+      message,
+    };
+
+    setFlashList((prev) => [...prev, toast].slice(-3));
+
+    // Animate removal
+    setTimeout(() => {
+      // trigger slide-out
+      setFlashList((prev) =>
+        prev.map((t) => (t.id === toast.id ? { ...t, leaving: true } : t))
+      );
+
+      // remove after slide-out animation
+      setTimeout(() => {
+        setFlashList((prev) => prev.filter((t) => t.id !== toast.id));
+      }, 250);
+    }, 3000);
+  }
+
   async function handleAdd() {
     if (!form.name || !form.contact || !form.datetime) {
-      const newToast = {
-        id: crypto.randomUUID(),
-        type: "error" as const,
-        message: "All fields are required!",
-      };
-
-      setFlashList((prev) => [...prev, newToast].slice(-3));
-
-      setTimeout(() => {
-        setFlashList((prev) => prev.filter((t) => t.id !== newToast.id));
-      }, 2000);
-
+      createToast("All fields are required!");
       return;
     }
 
@@ -151,25 +164,31 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen flex justify-center items-start py-12 px-4 bg-gradient-to-br from-zinc-100 to-zinc-200 dark:from-black dark:to-zinc-900">
-      <div className="w-full max-w-5xl bg-white/90 dark:bg-zinc-900/80 backdrop-blur-md rounded-2xl shadow-2xl border border-zinc-300 dark:border-zinc-800 p-8 animate-fade">
 
-        {/* TOASTS */}
+      {/* ===================================================== */}
+      {/* GLOBAL FIXED TOASTS */}
+      {/* ===================================================== */}
+      <div className="fixed top-5 right-5 z-50 pointer-events-none">
         {flashList.map((t, i) => (
           <div
             key={t.id}
-            className="fixed right-5 bg-red-600 text-white shadow-lg px-4 py-2 rounded-lg animate-slide-in"
-            style={{ top: `${20 + i * 60}px` }}
+            className={`
+              bg-red-600 text-white shadow-lg px-4 py-2 rounded-lg mb-3
+              animate-slide-in
+              ${t.leaving ? "animate-slide-out" : ""}
+            `}
+            style={{ marginTop: `${i * 4}px` }}
           >
             {t.message}
           </div>
         ))}
+      </div>
+
+      <div className="w-full max-w-5xl bg-white/90 dark:bg-zinc-900/80 backdrop-blur-md rounded-2xl shadow-2xl border border-zinc-300 dark:border-zinc-800 p-8 animate-fade">
 
         {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-            Admin Panel
-          </h1>
-
+          <h1 className="text-3xl font-bold">Admin Panel</h1>
           <Link href="/" className="btn-secondary px-4 py-2 text-sm">
             Back to Home
           </Link>
@@ -221,16 +240,12 @@ export default function AdminPage() {
         {/* TABLE */}
         <div className="overflow-x-auto rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-lg">
           {loading ? (
-            <p className="p-4 text-center text-zinc-600 dark:text-zinc-400">
-              Loading appointments...
-            </p>
+            <p className="p-4 text-center">Loading appointments...</p>
           ) : current.length === 0 ? (
-            <p className="p-6 text-center text-zinc-600 dark:text-zinc-400">
-              No appointments found.
-            </p>
+            <p className="p-6 text-center">No appointments found.</p>
           ) : (
-            <table className="min-w-full text-sm text-zinc-700 dark:text-zinc-300 text-center">
-              <thead className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 uppercase text-xs font-semibold text-center">
+            <table className="min-w-full text-sm text-center">
+              <thead className="bg-zinc-100 dark:bg-zinc-800 text-xs font-semibold">
                 <tr>
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Contact</th>
@@ -240,27 +255,23 @@ export default function AdminPage() {
                 </tr>
               </thead>
 
-              <tbody className="text-center">
+              <tbody>
                 {current.map((appt, i) => (
                   <tr
                     key={appt.id}
                     className={`
-              border-t border-zinc-200 dark:border-zinc-700
-              ${i % 2 ? "bg-white/40 dark:bg-zinc-900/40" : "bg-white/20 dark:bg-zinc-800/30"}
-              ${flash?.id === appt.id && flash.type === "add" ? "animate-flash-green" : ""}
-              ${flash?.id === appt.id && flash.type === "update" ? "animate-flash-blue" : ""}
-              ${flash?.id === appt.id && flash.type === "delete" ? "animate-flash-red" : ""}
-            `}
+                      border-t border-zinc-200 dark:border-zinc-700
+                      ${i % 2 ? "bg-white/40 dark:bg-zinc-900/40" : "bg-white/20 dark:bg-zinc-800/30"}
+                      ${flash?.id === appt.id && flash.type === "add" ? "animate-flash-green" : ""}
+                      ${flash?.id === appt.id && flash.type === "update" ? "animate-flash-blue" : ""}
+                      ${flash?.id === appt.id && flash.type === "delete" ? "animate-flash-red" : ""}
+                  `}
                   >
-                    <td className="px-4 py-3 font-medium text-center">{appt.name}</td>
-                    <td className="px-4 py-3 text-center">{appt.contact}</td>
-                    <td className="px-4 py-3 text-center">
-                      {new Date(appt.datetime).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {appt.createdAt
-                        ? new Date(appt.createdAt).toLocaleString()
-                        : "—"}
+                    <td className="px-4 py-3">{appt.name}</td>
+                    <td className="px-4 py-3">{appt.contact}</td>
+                    <td className="px-4 py-3">{new Date(appt.datetime).toLocaleString()}</td>
+                    <td className="px-4 py-3">
+                      {appt.createdAt ? new Date(appt.createdAt).toLocaleString() : "—"}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-center gap-2">
@@ -298,7 +309,7 @@ export default function AdminPage() {
             Prev
           </button>
 
-          <span className="text-zinc-600 dark:text-zinc-400">
+          <span>
             Page {currentPage} of {totalPages}
           </span>
 
@@ -330,25 +341,19 @@ export default function AdminPage() {
               <input
                 type="text"
                 value={form.name}
-                onChange={(e) =>
-                  setForm({ ...form, name: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className={inputClass}
               />
               <input
                 type="text"
                 value={form.contact}
-                onChange={(e) =>
-                  setForm({ ...form, contact: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, contact: e.target.value })}
                 className={inputClass}
               />
               <input
                 type="datetime-local"
                 value={form.datetime}
-                onChange={(e) =>
-                  setForm({ ...form, datetime: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, datetime: e.target.value })}
                 className={inputClass}
               />
 
@@ -374,9 +379,8 @@ export default function AdminPage() {
             <h2 className="text-xl font-semibold mb-4 text-center text-red-600">
               Confirm Delete
             </h2>
-            <p className="text-center text-zinc-700 dark:text-zinc-300 mb-6">
-              Delete{" "}
-              <span className="font-semibold">{deleteAppt?.name}</span>?
+            <p className="text-center mb-6">
+              Delete <span className="font-semibold">{deleteAppt?.name}</span>?
             </p>
 
             <div className="flex gap-2">
